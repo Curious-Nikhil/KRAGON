@@ -25,7 +25,7 @@ void setup() {
 void loop() {
 
     /**
-     * Detect Landing
+     * Detect Landing Detect landing using a light sensor
      * Wait and Charge
      * Move and Avoid Obstacle
      * 
@@ -48,7 +48,14 @@ void move_backward() {
 }
 
 void rover_exit() {
-    //Detect landing using a light sensor
+    
+    delay(10000); 
+
+    //beep
+    move_forward();
+    delay(5000);
+
+
 
     //wait for few 5 minutes:
 
