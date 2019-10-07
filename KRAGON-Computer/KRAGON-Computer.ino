@@ -6,18 +6,14 @@
  ****************/
 
 //Header Files
-#include "i2c.h"
-#include "i2c_BMP280.h"
-#include "MPU6050.h"
+#include "Adafruit_BMP280.h"
 #include <Wire.h>
 #include "SimpleKalmanFilter.h"
-#include <SD.h>
 
-#define INTERRUPT_PIN 2  // 
 #define RLED 6// Green LED
 #define GLED 7// Green LED
 #define buzzer 8 
-#define pyroPin 9
+
 
 // =============================================
 // ===          MISC Global Vars             ===
@@ -45,21 +41,7 @@ float est_alt;
 float temperature;
 float pascal;
 float base_alt;
-// =============================================
-// ===              SD CARD                  ===
-// =============================================
-String filename;
-File myFile;
-int sd_count = 0; //flusher
-// =============================================
-// ===              MPU Vars                 ===
-// =============================================
 
-MPU6050 accelgyro;
-
-int16_t ax, ay, az;
-int16_t gx, gy, gz;
-//BMP280
 
 void setup() {
     Serial.begin(9600);
@@ -92,13 +74,6 @@ void setup() {
     while(1);
   }
 
-  // PASS 2: Initialize SD Module
-  initializeSD();
-
-  //PASS 3: Initialize Gyroscope and Servo
-    //needs calibration method also.
-  initializeMPU();
-
   //PASS 3: Initialize Baromter
   initializeBMP();
 
@@ -126,7 +101,7 @@ void setup() {
 
 void loop() {
 
-      //Disable Pyros
+  //Disable Pyros
   
   if(release == false && pyro == false && landed == false) {
     GREEN();
@@ -134,6 +109,14 @@ void loop() {
   
 
 }
+
+
+
+
+
+
+
+
 // ================================================================
 // ===                RUN FUNCTIONS                      ===
 // ================================================================
@@ -143,123 +126,40 @@ void get_alt() {
   est_alt = pressureKalmanFilter.updateEstimate(alt);
 }
 
-void motion() {
-    accelgyro.getAcceleration(&ax, &ay, &az);
-}
-
 
 // ================================================================
 // ===                Initialize FUNCTIONS                      ===
 // ================================================================
-// ================================================================
-// ===               SD CARD Begin                              ===
-// ================================================================
-//Create a new filename everytime.
-boolean loadSDFile() {
-  int i = 0;
-  boolean file = false;
-
-  while (!file && i < 1024) {
-    filename = (String)i + "FL.csv";
-
-    if (!SD.exists(filename)) {
-      myFile = SD.open(filename, FILE_WRITE);
-      delay(10);
-      myFile.close();
-      file = true;
-    }
-    i++;
-  }
-
-  return file;
-}
-
-void initializeSD() {
-
-  Serial.print(F("InitSD"));
-
-  if (!SD.begin(4)) {
-    Serial.println(F("SDFAIL"));
-    RED();
-    while (1);
-  }
-  Serial.println(F("SDinit"));
-
-  //Create a file with new name
-  if (!loadSDFile()) {
-    Serial.println(F("F-0"));
-    while (1);
-    RED();
-  }
-  else {
-    Serial.println(F("F-1"));
-  }
-
-  Serial.println(filename);
-
-  myFile = SD.open(filename, FILE_WRITE);
-  Serial.println(myFile);
-  if (myFile) {
-    //Print Header Files  - - alt, pascal, est_alt, mpuPitch, mpuRoll, mpuYaw, OutputX, OutputY
-
-    myFile.print("Time");
-    myFile.print(",");
-    myFile.print("Pascal");
-    myFile.print(",");
-    myFile.print("alt");
-    myFile.print(",");
-    myFile.print("KMF");
-    myFile.print(",");
-    myFile.print("ax");
-    myFile.print(",");
-    myFile.print("ay");
-    myFile.print(",");
-    myFile.print("az");
-    myFile.print(",");
-    myFile.print("LaunchTime");
-    myFile.print(",");
-    myFile.print("ApoTime");
-    myFile.print(",");
-    myFile.println("LandTime");
-
-    myFile.close();
-    Serial.println(F("Fin-1"));
-
-  } else {
-    Serial.print(F("Fin-0"));
-    RED();
-    while (1);
-  }
-}
-
 
 // ================================================================
 // ===                         BAROMETER                       ===
 // ================================================================
 
 void initializeBMP() {
+  Serial.print(F("BMP"));
 
-  Serial.print(F("InintBMP"));
-  if (bmp280.initialize()) Serial.println(F("BMP1")); //sensor found
-  else
-  {
-    Serial.println(F("BMP0")); //Sensor not found
-    RED();
-    while (1) {}
+  if (!bmp280.begin()) {
+    Serial.println(F("0"));
+    while (1);
   }
 
-  //Calibration Settings - https://www.best-microcontroller-projects.com/bmp280.html#L1080
-  bmp280.setPressureOversampleRatio(10); //Oversampling Ratio!
-  bmp280.setTemperatureOversampleRatio(1);
-  bmp280.setFilterRatio(4);
-  bmp280.setStandby(0);
+  /*For drop detection
+    osrs_p = 2
+    osrs_t = 1
+    IIR = 0 (off)
+    t_sb = 0 (0.5ms)
+  */
 
-
-  // onetime-measure:
-  bmp280.setEnabled(0);
-  bmp280.triggerMeasurement();
+  /* Default settings from datasheet. */
+  bmp280.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                     Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                     Adafruit_BMP280::SAMPLING_X1,    /* Pressure oversampling */
+                     Adafruit_BMP280::FILTER_OFF,      /* Filtering. */
+                     Adafruit_BMP280::STANDBY_MS_1); /* Standby time. */
 
   Serial.println(F("BMPInit1"));
+}
+
 }
 
 
