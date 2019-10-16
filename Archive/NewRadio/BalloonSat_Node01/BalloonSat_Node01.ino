@@ -1,5 +1,5 @@
 //@Nikhil Mishra
-//BaseStation Radio Program
+//BalloonSat Radio Program
 
 #include <RF24Network.h>
 #include <RF24.h>
@@ -10,8 +10,8 @@ RF24 radio(7, 8); //CE, CSN
 
 RF24Network network(radio);
 
-const int this_node = 00; //BaseStation
-const int SatNode = 01;    //BalloonSat
+const int this_node = 01; //SatNode
+const int MasterNode = 00;    //BaseStation
 const int LanderNode = 011;     //Lander
 const int RoverNode = 0111;    //Rover
 
@@ -41,8 +41,6 @@ struct basecommands {
     bool reboot;
 };
 
-int i = 1;
-
 basecommands BaseCommands; //stupid naming schemes!
 
 void setup() {
@@ -53,6 +51,8 @@ void setup() {
     radio.begin();
     network.begin(90, this_node);
 
+    pinMode(A0, INPUT);
+
 }
 
 void loop() {
@@ -60,31 +60,24 @@ void loop() {
     network.update();
 
     //====Recieving====//
+    Serial.println(network.available());
     while(network.available()) {
         RF24NetworkHeader header;
-       network.read(header, &IncomingData00, sizeof(IncomingData00));
+       network.read(header, &BaseCommands, sizeof(BaseCommands));
     }
-
-
-    Serial.print("Time: ");
-    Serial.print(IncomingData00.ms);
-    Serial.print("\t MQ: ");
-    Serial.println(IncomingData00.mq135);
-
-
-    BaseCommands.abort = 1;
-    BaseCommands.mode = i++;
-
-    //====SendingtoSat====//
-    RF24NetworkHeader header2(SatNode);
-    bool ok = network.write(header2, &BaseCommands, sizeof(BaseCommands));
-    Serial.println(ok);
-
-    //====SendingtoLander====//
-    RF24NetworkHeader header3(LanderNode);
-    bool ok2 = network.write(header3, &BaseCommands, sizeof(BaseCommands));
-    Serial.println(ok2);
     
-    //====SendingtoRover====//
+    Serial.print("Mode: ");
+    Serial.print(BaseCommands.mode);
+    Serial.print("\t Abort: ");
+    Serial.println(BaseCommands.abort);
+
+    IncomingData00.ms = millis();
+
+    IncomingData00.mq135 = analogRead(A0);
+
+    //====SendingtoBaseStation====//
+    RF24NetworkHeader header2(MasterNode);
+    bool ok = network.write(header2, &IncomingData00, sizeof(IncomingData00));
+
 
 }
