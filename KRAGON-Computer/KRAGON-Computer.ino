@@ -6,14 +6,14 @@
  ****************/
 
 //Header Files
-#include "Adafruit_BMP280.h"
-#include <Wire.h>
 #include "SimpleKalmanFilter.h"
+#include "Adafruit_BMP280.h"
+#include <NewPing.h>
+#include <Wire.h>
 
 #define RLED 6// Green LED
 #define GLED 7// Green LED
 #define buzzer 8 
-
 
 // =============================================
 // ===          MISC Global Vars             ===
@@ -29,7 +29,14 @@ bool release = false;
 bool landed = false;
 bool pyro = false;
 
+// =============================================
+// ===                SONAR                  ===
+// =============================================
+#define TRIGGER_PIN  12
+#define ECHO_PIN     9
+#define MAX_DISTANCE 400
 
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
 // =============================================
 // ===              BAROMETER                ===
 // =============================================
@@ -75,7 +82,7 @@ void setup() {
   }
 
   //PASS 3: Initialize Baromter
-  initializeBMP();
+  //initializeBMP();
 
   //PASS 4: Pyro Check
 
@@ -107,6 +114,7 @@ void loop() {
     GREEN();
   }
   
+               
 
 }
 

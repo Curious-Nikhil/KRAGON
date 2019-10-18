@@ -1,13 +1,17 @@
 //@Nikhil Mishra
 // KRAWLER's Computer :D
-//SONAR - ECHO - 1 TRIG - 2
-
+//SONAR - ECHO - 9 TRIG - 4
+/*
+  NRF24L01 - 
+  CE - 8
+  CSN - 2
+  MISO - 11
+  MOSI - 12
+  SCK - 13
+ */
 #include <AFMotor.h>
 #include <NewPing.h>
 
-#define TRIGGER_PIN  12
-#define ECHO_PIN     9
-#define MAX_DISTANCE 400
 
 //Timers
 unsigned long last;
@@ -17,6 +21,7 @@ int i = 0;
 
 //MISC Vars
 bool door;
+bool rover_out = false;
 int mspeed;
 
 /* DC Motors: */
@@ -26,6 +31,10 @@ AF_DCMotor motor3(3); //Front Right
 AF_DCMotor motor4(4); //Front Left
 
 //SONAR:
+#define TRIGGER_PIN  4
+#define ECHO_PIN     9
+#define MAX_DISTANCE 400
+
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
 
 
@@ -73,23 +82,18 @@ void loop() {
   Serial.println(sonar.ping_cm()); 
 
 
-    move_forward(255);
+    //move_left();
 
-    // if (sonar.ping_cm() < 15) {
+    // if (sonar.ping_cm() > 15 && rover_out == false) {
     //     Serial.println("DOOR IS CLOSED!");
 
-    //     door = true; //closed
-    // }
-    // else {
     //     door = false; //opened
     // }
 
-    // if(door == false) {
+    // if(door == false && rover_out == false) {
     //     rover_exit();
-
     //     Serial.println("ROVER IS OUT! GOOD LUCK!");
     // }
-
 
 }
 
@@ -133,7 +137,7 @@ void move_backward(int mspeed) {
 
 void move_left() {
   motor4.run(BACKWARD);
-  motor1.run(BACKWARD);
+  //motor1.run(BACKWARD);
 
   motor2.run(FORWARD);
   motor3.run(BACKWARD);
@@ -151,25 +155,21 @@ void move_right() {
 
 void rover_exit() {
   Serial.println("ROVER_EXIT");
-  delay(10000);
+  delay(2000);
 
   //beep
-  motor1.setSpeed(127);
-  motor2.setSpeed(127);
-  motor3.setSpeed(127);
-  motor4.setSpeed(127);
 
-  motor1.run(BACKWARD);
-  motor2.run(FORWARD);
-  motor3.run(BACKWARD);
-  motor4.run(FORWARD);
+  move_forward(255);
 
-  delay(10000);
-  motor_release();
+  delay(5000);
+  
+  //motor_release();
   //wait for few 5 minutes:
-  delay(10000);
+  //delay(1000);
 
   //wait and Charge
 
   //send happy signal to ground station!
+
+  rover_out = true;
 }
