@@ -7,32 +7,66 @@
 
 //Header Files
 #include "I2Cdev.h"
+#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+    #include "Wire.h"
+#endif
 #include "MPU6050_6Axis_MotionApps20.h"
 //Radio
 #include <RF24Network.h>
 #include <RF24.h>
 #include <SPI.h>
 //Sonar
-#include <NewPing.h>
+//#include <NewPing.h>
 
+// ===================================================
+// ===                 Pin Layouts                 ===
+// ===================================================
+/*  Door Servo - 6
+    Trigger Servo 1 - 5
+    Trigger Servo 2 - 3
+
+    Sonar trig - 8
+          ECHO - 9
+
+    LED - 
+    A2 - Red
+    A1 - 
+ 
+    buzz - A0
+
+    Relay Fire - A3/0
+ */
 // ===================================================
 // ===                 MISC Vars                   ===
 // ===================================================
+//Timers Vars
+unsigned long previousMillis = 0;
+unsigned long previousMillis2 = 0;
+unsigned long currentMillis;
+
+const int RLED = A2;
+const int buzz = A0;
+
 bool engine_fire = false;
 bool tilt_abort = false;
+
+const int RELAY = A3; // ACTIVE LOW
+
 // ===================================================
 // ===               NewPing - SONAR               ===
 // ===================================================
-#define TRIGGER_PIN  12  
-#define ECHO_PIN     11 
+#define TRIGGER_PIN  8  
+#define ECHO_PIN     9 
 #define MAX_DISTANCE 400 
 
-NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
+long duration;
+int distance;
+
 // ===================================================
 // ===               RADIO - NRF24                 ===
 // ===================================================
-RF24 radio(7,8);  CE, CSN          
-RF24Network network(radio); 
+// RF24 radio(7,8); // CE, CSN          
+// RF24Network network(radio); 
 
 // ===================================================
 // ===                      MPU6050                ===
@@ -69,15 +103,34 @@ void dmpDataReady() {
 
 void setup() {
     Serial.begin(115200);
-    delay(5000);
 
+    //Startup Sound
+    tone(buzz, 2500, 300);
+    delay(1000);
+    tone(buzz, 2000, 300);
+    delay(500);
+    tone(buzz, 3000, 300);
+    tone(buzz, 3500, 300);
+    delay(500);
+    tone(buzz, 2500, 300);
+    delay(1000);
+    delay(2000);
+
+    delay(1000);
+
+    pinMode(RELAY, OUTPUT);
+    pinMode(buzz, OUTPUT);
     //Disable Mission Critical Functions:
-    digitalRead(relay, LOW);
 
+    digitalWrite(RELAY, HIGH); //ACTIVE LOW
+
+    //SONAR
+    pinMode(TRIGGER_PIN, OUTPUT); // Sets the trigPin as an Output
+    pinMode(ECHO_PIN, INPUT); // Sets the echoPin as an Input
     //setup MPU6050
     mpusetup();
 
-    delay(5000);
+    delay(1000);
 }
 
 
@@ -87,31 +140,70 @@ void setup() {
 // ================================================================
 
 void loop() {
+
+    if (tilt_abort == false && engine_fire == false ) {
+        GREEN();
+        noTone(buzz);
+    }
+
+    if (engine_fire ==true) {
+
+        POST_LAND();
+        
+    }
     mpudata();
-    
+    sonarr();
 
     //Tilt Abort Program
     if (ypr[1] * 180/M_PI > maxrollangle || ypr[1] * 180/M_PI < -maxrollangle) {
         Serial.println("MAX Roll Tilted!!");
+        tilt_abort = true;
     }
     if (ypr[2] * 180/M_PI > maxpitchangle || ypr[2] * 180/M_PI < -maxpitchangle) {
         Serial.println("MAX Pitch Tilted!!");
+        tilt_abort = true;
     }
 
 
     //Descent Engine Fire
+/* && tilt_abort == true && engine_fire == false */
+    if (distance < 20 && distance != 0  && engine_fire == false) {
+            //Tilt Abort Program
+        if ((ypr[1] * 180/M_PI > maxrollangle || ypr[1] * 180/M_PI < -maxrollangle ) || (ypr[2] * 180/M_PI > maxpitchangle || ypr[2] * 180/M_PI < -maxpitchangle)) {
+            Serial.println("MAX Roll or Pitch Tilted!!");
+            tilt_abort = true;
+        }
 
-    if (sonar.ping_cm())
+        if (tilt_abort == false) {
+        Serial.println("FIRING!");
+        delay(10);
+        digitalWrite(RELAY, LOW); //ACTIVE LOW
 
-    if (engine_fire == true && tilt_abort == false && drop == true) {
+        RED();
 
-        digitalRead(relay, HIGH);
+        delay(5000);
+
+        engine_fire = true;
+
+        digitalWrite(RELAY, HIGH); //REST ENGINE
+
+        digitalWrite(buzz, HIGH);
+        }
     }
+    
 }
 
 void mpusetup() {
 
-    
+    // join I2C bus (I2Cdev library doesn't do this automatically)
+    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+        Wire.begin();
+        Wire.setClock(400000); // 400kHz I2C clock. Comment this line if having compilation difficulties
+    #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+        Fastwire::setup(400, true);
+    #endif
+
+
     // initialize device
     Serial.println(F("Initializing I2C devices..."));
     mpu.initialize();
@@ -231,4 +323,86 @@ void mpudata() {
         #endif
         
     }
+}
+
+void sonarr() {
+    // Clears the trigPin
+  digitalWrite(TRIGGER_PIN, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(ECHO_PIN, HIGH);
+  // Calculating the distance
+  distance = duration * 0.034 / 2;
+  // Prints the distance on the Serial Monitor
+  Serial.println(distance);
+}
+
+void red_buzz() {
+        digitalWrite(buzz, HIGH);
+        delay(200);
+        digitalWrite(buzz, LOW);
+                digitalWrite(buzz, HIGH);
+        delay(200);
+        digitalWrite(buzz, LOW);
+                digitalWrite(buzz, HIGH);
+        delay(200);
+        digitalWrite(buzz, LOW);
+                digitalWrite(buzz, HIGH);
+        delay(200);
+        digitalWrite(buzz, LOW);
+}
+
+void RED()
+{
+  digitalWrite(RLED, HIGH);
+  tone(buzz, 2500, 100);
+  delay(200);
+  digitalWrite(RLED, LOW);
+
+  tone(buzz, 2500, 100);
+  delay(200);
+  digitalWrite(RLED, HIGH);
+
+  tone(buzz, 2000, 100);
+  delay(500);
+  tone(buzz, 2000, 100);
+  noTone(buzz);
+}
+
+
+
+void GREEN() {
+  //Everything is fine.. signal.
+  unsigned long interval = 1000;
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis > interval) {
+    previousMillis = currentMillis;
+
+    digitalWrite(RLED, HIGH);
+    tone(buzz, 2500, 100);
+  }
+  else {
+    digitalWrite(RLED, LOW);
+  }
+}
+
+void POST_LAND() {
+  //Everything is fine.. signal.
+  unsigned long interval = 2000;
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis > interval) {
+    previousMillis = currentMillis;
+
+    digitalWrite(RLED, HIGH);
+    tone(buzz, 2500, 100);
+  }
+  else {
+    digitalWrite(RLED, LOW);
+  }
 }
