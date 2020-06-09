@@ -10,7 +10,7 @@ Humans have been intrigued by the question of whether life exists out there sinc
 1. **Planetary Science:** Using IMUs, Barometers and a suite of others to extract information about it’s proximity and further which could help find the answers. 
 2. **Space Exploration:**
 3. **Meteorology:** At this scale a Balloon-Sat can be used a conventional Weather Data collector for the IMD (Indian Meteorological Dept).
-4. **Proof of Concept:** Realization of this design for Venus and similar planetary exploration.
+4. **Proof of Concept:** Realization of this design for Venus and similar planetary explorations.
 
 ## Systems Design
 
